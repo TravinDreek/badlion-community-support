@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"/>
+		<meta name="renderer" content="webkit"/>
+		<meta name="force-rendering" content="webkit"/>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+		<link rel="shortcut icon" href="https://www.badlion.net/static/assets/images/logos/badlion-logo.png"/>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui@1.0.1/dist/css/mdui.min.css" integrity="sha384-cLRrMq39HOZdvE0j6yBojO4+1PrHfB7a9l5qLcmRm/fiWXYY+CndJPmyu5FV/9Tw" crossorigin="anonymous"/>
+
+		<title>处罚 - Badlion Community Support</title>
+	</head>
+	<body class="mdui-theme-layout-dark mdui-theme-primary-orange mdui-theme-accent-orange" style="background-color: #131313">
+		<div style="color: white">
+			<div style="text-align: center">
+				<img style="height: 64px; margin: 32px; cursor: pointer" onclick="window.location.href='.'" src="https://www.badlion.net/static/assets/images/logos/badlion-logo.png"/>
+			</div>
+			<div class="mdui-container">
+				<div id="searchbar" class="mdui-textfield mdui-textfield-expandable">
+					<button class="mdui-textfield-icon mdui-btn mdui-btn-icon" onclick="if($('#searchbar').hasClass('mdui-textfield-expanded')) query_execute(1, $('#querybox').prop('value'))"><i class="mdui-icon material-icons">search</i></button>
+					<input id="querybox" class="mdui-textfield-input" onkeydown="if(event.keyCode == 13) query_execute(1, $('#querybox').prop('value'))" type="text" placeholder="搜索用户或处罚 ID"/>
+					<button class="mdui-textfield-close mdui-btn mdui-btn-icon" onclick="query_execute(1)"><i class="mdui-icon material-icons">close</i></button>
+				</div>
+				<div style="margin-top: 8px; margin-bottom: 8px;" class="mdui-table-fluid">
+					<table class="mdui-table mdui-table-hoverable">
+						<thead>
+							<tr>
+							<th>ID</th>
+							<th>用户</th>
+							<th>处罚类型</th>
+							<th>生效时间</th>
+							<th>失效时间</th>
+							<th>注释</th>
+							</tr>
+						</thead>
+						<tbody>
+						</tbody>
+					</table>
+					<div id="progressbar" class="mdui-progress">
+						<div class="mdui-progress-indeterminate"></div>
+					</div>
+				</div>
+			</div>
+			<div style="text-align: center">
+				<button id="head" class="mdui-btn mdui-btn-icon mdui-ripple" onclick="query_execute(1, query)" disabled><i class="mdui-icon material-icons">skip_previous</i></button><button id="prev" class="mdui-btn mdui-btn-icon mdui-ripple" onclick="query_execute(page - 1, query)" disabled><i class="mdui-icon material-icons">navigate_before</i></button><span id="page" style="padding: 4px">0 / 0</span><button id="next" class="mdui-btn mdui-btn-icon mdui-ripple" onclick="query_execute(page + 1, query)" disabled><i class="mdui-icon material-icons">navigate_next</i></button><button id="foot" class="mdui-btn mdui-btn-icon mdui-ripple" onclick="query_execute(pages, query)" disabled><i class="mdui-icon material-icons">skip_next</i></button>
+			</div>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/npm/mdui@1.0.1/dist/js/mdui.min.js" integrity="sha384-gCMZcshYKOGRX9r6wbDrvF+TcCCswSHFucUzUPwka+Gr+uHgjlYvkABr95TCOz3A" crossorigin="anonymous"></script>
+		<script>
+			var $ = mdui.$;
+			var query;
+			var page;
+			var pages;
+			if(window.location.hash.length > 1) {
+				$('#progressbar').show();
+				var id = window.location.hash.slice(1);
+				$('#querybox').prop('value', id);
+				$('#searchbar').addClass('mdui-textfield-expanded');
+				query_execute(1, id);
+				window.location.hash = '';
+			}
+			else {
+				query_execute(1);
+			}
+
+			function punishment_show(id, user, type, from, to, comment) {
+				mdui.dialog({
+					title: '处罚 #' + id,
+					content: 'content',
+					buttons: [{text: '关闭',}],
+					modal: true,
+					closeOnEsc: false,
+					history: false
+				});
+			}
+
+			function query_execute(page, query) {
+				this.query = query;
+				this.page = page;
+				$('tbody').empty();
+				$('#progressbar').show();
+				url = '//srv.peaksol.fun:100/api/bcs_punishments.php?page=' + page + (query ? '&query=' + query : '');
+				fetch(url)
+				.then(function(res) {
+					res.json().then(json => {
+						if(json.success) {
+							$.each(json.result, function(k, v) {
+								$('tbody').append(
+									'<tr><td>' +
+									v.id +'</td><td>' +
+									v.user + '</td><td>' +
+									(v.type ? '封禁' : '禁言') + '</td><td>' +
+									timestamp_to_time(v.from) + '</td><td>' +
+									timestamp_to_time(v.to)+ '</td><td>' +
+									v.comment + '</tr>'
+								);
+							})
+							this.pages = json.pages;
+							$('#head').prop('disabled', page == 1);
+							$('#prev').prop('disabled', page == 1);
+							$('#next').prop('disabled', page == json.pages);
+							$('#foot').prop('disabled', page == json.pages);
+							$('#page').text(page + ' / ' + pages)
+						}
+						$('#progressbar').hide();
+					})
+				});
+			}
+			function timestamp_to_time(timestamp) {
+				var date = new Date(timestamp * 1000);
+				var Y = date.getFullYear() + '-';
+				var M = time_pad(date.getMonth() + 1) + '-';
+				var D = time_pad(date.getDate()) + ' ';
+				var h = time_pad(date.getHours()) + ':';
+				var m = time_pad(date.getMinutes()) + ':';
+				var s = time_pad(date.getSeconds());
+				return Y + M + D + h + m + s;
+			}
+
+			function time_pad(num) {
+				if(num < 10) {
+					return '0' + num;
+				}
+				else {
+					return num;
+				}
+			}
+		</script>
+	</body>
+</html>
